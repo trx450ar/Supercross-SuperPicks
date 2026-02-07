@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
 
-# === PALETTE ===
+# === PALETTE (minimal bronze accents, no slider overrides) ===
 BLACK_BG = "#000000"
 CHARCOAL_DEEP = "#1A1A1A"
 TITANIUM_DARK = "#2E2E2E"
@@ -14,9 +14,9 @@ HONDA_RED_DARK = "#8B0000"
 TEXT_LIGHT = "#D0D0D0"
 STEALTH_GREY = "#3A3A3A"
 
-st.set_page_config(page_title="Supercross Predictor", layout="wide")
+st.set_page_config(page_title="Supercross SuperPicks", layout="wide")
 
-# Custom CSS - original sidebar style with bronze sliders + subtle red
+# Custom CSS - subtle bronze + red accents, no slider color override
 st.markdown(f"""
     <style>
         .stApp {{
@@ -30,7 +30,7 @@ st.markdown(f"""
             letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red underline */
+            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red underline under title */
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -53,9 +53,6 @@ st.markdown(f"""
             background-color: {CHARCOAL_DEEP};
             border: 1px solid {TITANIUM_DARK};
             border-radius: 4px;
-        }}
-        .stSlider > div > div {{
-            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});  /* Bronze sliders */
         }}
         hr {{
             border-color: {TITANIUM_DARK};
@@ -83,10 +80,10 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("Supercross Predictor")
+st.title("Supercross SuperPicks")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar - first version you liked (simple + weights expander)
+# Sidebar - original first version you liked (clean, weights expander)
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
@@ -106,7 +103,6 @@ with st.sidebar:
 # Main logic
 if st.button("GO - Run Predictions"):
     with st.spinner("Running model..."):
-        # Rider data (placeholder - update manually or add auto-pull later)
         rider_names = ['Eli Tomac', 'Hunter Lawrence', 'Ken Roczen', 'Chase Sexton', 'Cooper Webb', 'Jason Anderson', 'Justin Cooper', 'Jorge Prado', 'Malcolm Stewart', 'Joey Savatgy', 'Dylan Ferrandis', 'Aaron Plessinger', 'Christian Craig', 'Vince Friese', 'Shane McElrath', 'Justin Hill', 'RJ Hampshire', 'Freddie Noren', 'Kyle Chisholm', 'Benny Bloss', 'Justin Starling', 'Cade Clason']
         qual_times = [52.181, 52.800, 52.000, 52.500, 53.100, 53.300, 53.500, 52.417, 53.700, 53.900, 54.000, 54.200, 54.300, 54.500, 54.600, 54.800, 55.000, 55.200, 55.400, 55.600, 55.800, 56.000]  # Placeholder
 
@@ -191,7 +187,6 @@ if st.button("GO - Run Predictions"):
         st.subheader("Optimized Wildcard")
         st.success(f"Recommended for position {wildcard_pos}: {selected_wildcard}")
 
-        # Labeled graph
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
         ax.set_title('Top 5 Rider Scores', color=TEXT_LIGHT)
