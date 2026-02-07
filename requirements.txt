@@ -6,3 +6,4 @@ scipy
 pulp
 requests
 beautifulsoup4
+scikit-learn
