@@ -3,20 +3,21 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
-import requests
-from bs4 import BeautifulSoup
 
-# === COLOR PALETTE & THEME ===
-BURNT_BRONZE = "#8C5523"
-TITANIUM_DARK = "#3A3A3A"
-CHARCOAL_DEEP = "#222222"
+# === PALETTE ===
 BLACK_BG = "#000000"
-STEALTH_GREY = "#4A4A4A"
-HONDA_RED_SUBTLE = "#B22222"
+CHARCOAL_DEEP = "#1A1A1A"
+TITANIUM_DARK = "#2E2E2E"
+COBALT_ACCENT = "#0047AB"
+BURNT_BRONZE = "#8C5523"
+BRONZE_LIGHT = "#A67C52"
+HONDA_RED_DARK = "#8B0000"  # Darker, muted red
 TEXT_LIGHT = "#D0D0D0"
+STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross Predictor", layout="wide")
 
+# Custom CSS
 st.markdown(f"""
     <style>
         .stApp {{
@@ -38,17 +39,24 @@ st.markdown(f"""
         }}
         .stButton > button:hover {{
             background-color: {STEALTH_GREY};
-            border-color: {HONDA_RED_SUBTLE};
-            box-shadow: 0 0 8px rgba(178, 34, 34, 0.15);
+            border-color: {HONDA_RED_DARK};
+            box-shadow: 0 0 8px rgba(139, 0, 0, 0.15);
         }}
         .stSidebar {{
-            background-color: #1A1A1A;
+            background-color: {CHARCOAL_DEEP};
             border-right: 1px solid {TITANIUM_DARK};
         }}
         .stExpander {{
             background-color: {CHARCOAL_DEEP};
             border: 1px solid {TITANIUM_DARK};
             border-radius: 4px;
+        }}
+        .stNumberInput > div > div {{
+            border: 1px solid {BRONZE_LIGHT};
+            border-radius: 4px;
+        }}
+        .stSlider > div > div {{
+            background: linear-gradient(to right, #006400, #8B0000); /* green to red */
         }}
         hr {{
             border-color: {TITANIUM_DARK};
@@ -63,7 +71,7 @@ st.markdown(f"""
             text-align: center;
             padding: 8px 0;
             font-size: 0.8em;
-            border-top: 1px solid {HONDA_RED_SUBTLE};
+            border-top: 1px solid {HONDA_RED_DARK};
         }}
         .stDivider {{
             background: linear-gradient(to right, transparent, {TITANIUM_DARK}, transparent);
@@ -75,15 +83,26 @@ st.markdown(f"""
 st.title("Supercross Predictor")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar Inputs
+# Sidebar
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
-    qual_times_str = st.text_input("Qual Lap Times (22 comma-separated values)", value="52.181,52.800,52.000,52.500,53.100,53.300,53.500,52.417,53.700,53.900,54.000,54.200,54.300,54.500,54.600,54.800,55.000,55.200,55.400,55.600,55.800,56.000")
+
+    st.subheader("Qual Lap Times")
+    st.caption("Enter 22 values (one per rider order above). Use current Q2 times when available.")
+    qual_times = []
+    col1, col2 = st.columns(2)
+    rider_names = ['Eli Tomac', 'Hunter Lawrence', 'Ken Roczen', 'Chase Sexton', 'Cooper Webb', 'Jason Anderson', 'Justin Cooper', 'Jorge Prado', 'Malcolm Stewart', 'Joey Savatgy', 'Dylan Ferrandis', 'Aaron Plessinger', 'Christian Craig', 'Vince Friese', 'Shane McElrath', 'Justin Hill', 'RJ Hampshire', 'Freddie Noren', 'Kyle Chisholm', 'Benny Bloss', 'Justin Starling', 'Cade Clason']
+    for i in range(22):
+        col = col1 if i < 11 else col2
+        default = 52.5 + (i * 0.2)  # Gradual increase for fallback
+        val = col.number_input(f"{rider_names[i]}", value=default, step=0.001, format="%.3f", key=f"qual_{i}")
+        qual_times.append(val)
+
     track_scale = st.slider("Track Conditions Scale", 1, 100, 80, help="1 = muddy/wet, 100 = dry/hard-pack (adjust based on preview)")
 
     with st.expander("Model Weights (Adjust if Needed)"):
-        st.markdown("Higher weight = more influence on final score. Hover for details.")
+        st.markdown("Higher weight = more influence. Hover for details.")
         w_pos = st.slider("Recent Position Weight", 0.0, 0.5, 0.30, step=0.05, help="Higher = favors recent momentum. Ex: 0.4 drops inconsistent riders more.")
         w_points = st.slider("Season Points Weight", 0.0, 0.5, 0.30, step=0.05, help="Higher = rewards overall standings. Ex: 0.4 boosts Tomac's lead.")
         w_odds = st.slider("Betting Odds Weight", 0.0, 0.3, 0.15, step=0.05, help="Higher = trusts market favorites more.")
@@ -96,27 +115,15 @@ with st.sidebar:
 # Main Button & Logic
 if st.button("GO - Run Predictions"):
     with st.spinner("Running model..."):
-        # Parse qual times
-        try:
-            qual_times = [float(t.strip()) for t in qual_times_str.split(',')]
-            if len(qual_times) != 22:
-                raise ValueError
-        except:
-            qual_times = [52.5] * 22  # Fallback
-            st.warning("Qual times invalid—using average placeholder.")
-
-        # Rider base data (update automated pulls here if you want later)
-        rider_names = ['Eli Tomac', 'Hunter Lawrence', 'Ken Roczen', 'Chase Sexton', 'Cooper Webb', 'Jason Anderson', 'Justin Cooper', 'Jorge Prado', 'Malcolm Stewart', 'Joey Savatgy', 'Dylan Ferrandis', 'Aaron Plessinger', 'Christian Craig', 'Vince Friese', 'Shane McElrath', 'Justin Hill', 'RJ Hampshire', 'Freddie Noren', 'Kyle Chisholm', 'Benny Bloss', 'Justin Starling', 'Cade Clason']
-
         riders = []
-        for i, rider in enumerate(rider_names):
+        for i, name in enumerate(rider_names):
             riders.append({
-                'Rider': rider,
-                'Points': 88 - i*2,  # Placeholder - replace with real pull later
+                'Rider': name,
+                'Points': 88 - i*2,  # Placeholder - update with real data later
                 'Recent Positions': [i+1, i+2, i+3, i+4],  # Placeholder
                 'Qual Lap Time': qual_times[i],
                 'Behavioral Score': 0.90 - i*0.05,
-                'Injury Penalty': -0.15 if rider == 'Malcolm Stewart' else 0.00
+                'Injury Penalty': -0.15 if name == 'Malcolm Stewart' else 0.00
             })
 
         df = pd.DataFrame(riders)
@@ -156,7 +163,7 @@ if st.button("GO - Run Predictions"):
 
         top_df = df.sort_values('Top Score', ascending=False).reset_index(drop=True)
 
-        # Monte Carlo (simplified for app)
+        # Monte Carlo
         scores = top_df['Top Score'].values[:10]
         sims = []
         for _ in range(1000):
@@ -168,7 +175,7 @@ if st.button("GO - Run Predictions"):
         # Wildcard PuLP
         prob = LpProblem("Wildcard", LpMinimize)
         vars = LpVariable.dicts("sel", df.index, cat='Binary')
-        df['Dist14'] = abs(df['Avg Position'] - wildcard_position)
+        df['Dist14'] = abs(df['Avg Position'] - wildcard_pos)
         prob += lpSum([df['Dist14'][i] * vars[i] + 0.5 * df['Position Variance'][i] * vars[i] + abs(df['Injury Penalty'][i]) * vars[i] for i in df.index])
         prob += lpSum([vars[i] for i in df.index]) == 1
         prob.solve()
@@ -182,7 +189,7 @@ if st.button("GO - Run Predictions"):
         st.dataframe((position_probs * 100).round(1))
 
         st.subheader("Optimized Wildcard")
-        st.success(f"Recommended for position {wildcard_position}: {selected}")
+        st.success(f"Recommended for position {wildcard_pos}: {selected}")
 
         fig, ax = plt.subplots()
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
