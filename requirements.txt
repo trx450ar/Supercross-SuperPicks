@@ -4,3 +4,5 @@ numpy
 matplotlib
 scipy
 pulp
+requests
+beautifulsoup4
