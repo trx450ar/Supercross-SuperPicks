@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+import requests
+from bs4 import BeautifulSoup
 
 # === PALETTE ===
 BLACK_BG = "#000000"
@@ -18,7 +18,7 @@ STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross SuperPicks", layout="wide")
 
-# Custom CSS - original sidebar style + bronze sliders + subtle red accents
+# Custom CSS (same as before)
 st.markdown(f"""
     <style>
         .stApp {{
@@ -56,15 +56,8 @@ st.markdown(f"""
             border: 1px solid {TITANIUM_DARK};
             border-radius: 4px;
         }}
-        /* Semi-transparent bronze slider track */
-        .stSlider > div[data-testid="stSliderTrack"] {{
-            background: linear-gradient(to right, rgba(140, 85, 35, 0.4), rgba(166, 124, 82, 0.4)) !important;
-            border-radius: 4px;
-        }}
-        /* Full bronze handle for contrast */
-        .stSlider > div[data-testid="stSliderThumb"] {{
-            background-color: {BURNT_BRONZE} !important;
-            border: 2px solid {BRONZE_LIGHT} !important;
+        .stSlider > div > div {{
+            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});
         }}
         hr {{
             border-color: {TITANIUM_DARK};
@@ -95,14 +88,14 @@ st.markdown(f"""
 st.title("Supercross SuperPicks")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar - original layout you liked (simple + weights expander)
+# Sidebar
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
     track_scale = st.slider("Track Conditions Scale", 1, 100, 80, help="1 = muddy/wet, 100 = dry/hard-pack (adjust based on preview)")
 
     with st.expander("Model Weights (Adjust if Needed)"):
-        st.markdown("Higher weight = more influence on final score. Hover for explanation.")
+        st.markdown("Higher weight = more influence. Hover for explanation.")
         w_pos = st.slider("Recent Position Weight", 0.0, 0.5, 0.30, step=0.05, help="Higher = favors recent momentum. Ex: 0.4 drops inconsistent riders more.")
         w_points = st.slider("Season Points Weight", 0.0, 0.5, 0.30, step=0.05, help="Higher = rewards overall standings. Ex: 0.4 boosts Tomac's lead.")
         w_odds = st.slider("Betting Odds Weight", 0.0, 0.3, 0.15, step=0.05, help="Higher = trusts market favorites more.")
@@ -112,21 +105,83 @@ with st.sidebar:
         w_inj = st.slider("Injury Penalty Strength", 0.0, 1.0, 1.0, step=0.1, help="Higher = harsher drop for injury risks.")
         w_track = st.slider("Track Fit Weight", 0.0, 0.2, 0.05, step=0.01, help="Higher = more boost from track conditions match.")
 
-        enable_ml = st.checkbox("Enable ML Ensemble (experimental)", value=False, help="Runs a basic random forest on features and averages with weighted score. May improve accuracy on backtests.")
+# Auto-pull functions
+@st.cache_data(ttl=300)  # Cache for 5 minutes to avoid hammering sites
+def get_standings():
+    try:
+        url = "https://results.supercrosslive.com/results?p=view_series_points&id=16"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        rows = soup.find_all('tr')
+        points_data = {}
+        for row in rows[1:23]:
+            cols = row.find_all('td')
+            if len(cols) > 3:
+                rider = cols[2].text.strip()
+                points = int(cols[3].text.strip())
+                points_data[rider] = points
+        return points_data
+    except:
+        return {}  # Fallback to hardcoded
 
-# Main logic
+@st.cache_data(ttl=300)
+def get_recent_finishes():
+    try:
+        url = "https://mx1onboard.com/ama-supercross-results-2026"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        tables = soup.find_all('table')
+        recent_data = {}
+        for table in tables[:4]:
+            rows = table.find_all('tr')
+            for row in rows[1:]:
+                cols = row.find_all('td')
+                if len(cols) > 2:
+                    rider = cols[1].text.strip()
+                    pos = int(cols[0].text.strip())
+                    if rider in recent_data:
+                        recent_data[rider].append(pos)
+                    else:
+                        recent_data[rider] = [pos]
+        return recent_data
+    except:
+        return {}  # Fallback
+
+@st.cache_data(ttl=300)
+def get_odds():
+    try:
+        url = "https://www.nxtbets.com/odds/supercross"
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        odds_items = soup.find_all('div', class_='odds-item')
+        odds = {}
+        for item in odds_items:
+            rider = item.find('span', class_='rider').text.strip()
+            odd = item.find('span', class_='odd').text.strip().replace('+', '')
+            odds[rider] = int(odd) if odd.isdigit() else 1000
+        return odds
+    except:
+        return {'Eli Tomac': 190, 'Chase Sexton': 198, 'Hunter Lawrence': 308, 'Ken Roczen': 477, 'Cooper Webb': 750}  # Fallback
+
 if st.button("GO - Run Predictions"):
-    with st.spinner("Running model..."):
+    with st.spinner("Fetching data & running model..."):
+        # Pull fresh data
+        points_data = get_standings()
+        recent_data = get_recent_finishes()
+        odds = get_odds()
+
+        # Rider list with auto-filled data where possible
         rider_names = ['Eli Tomac', 'Hunter Lawrence', 'Ken Roczen', 'Chase Sexton', 'Cooper Webb', 'Jason Anderson', 'Justin Cooper', 'Jorge Prado', 'Malcolm Stewart', 'Joey Savatgy', 'Dylan Ferrandis', 'Aaron Plessinger', 'Christian Craig', 'Vince Friese', 'Shane McElrath', 'Justin Hill', 'RJ Hampshire', 'Freddie Noren', 'Kyle Chisholm', 'Benny Bloss', 'Justin Starling', 'Cade Clason']
-        qual_times = [52.181, 52.800, 52.000, 52.500, 53.100, 53.300, 53.500, 52.417, 53.700, 53.900, 54.000, 54.200, 54.300, 54.500, 54.600, 54.800, 55.000, 55.200, 55.400, 55.600, 55.800, 56.000]  # Placeholder
 
         riders = []
         for i, name in enumerate(rider_names):
+            recent = recent_data.get(name, [i+1, i+2, i+3, i+4])
+            points = points_data.get(name, 88 - i*2)
             riders.append({
                 'Rider': name,
-                'Points': 88 - i*2,
-                'Recent Positions': [i+1, i+2, i+3, i+4],
-                'Qual Lap Time': qual_times[i],
+                'Points': points,
+                'Recent Positions': recent,
+                'Qual Lap Time': 52.5 + (i * 0.2),  # Placeholder - update manually if needed
                 'Behavioral Score': 0.90 - i*0.05,
                 'Injury Penalty': -0.15 if name == 'Malcolm Stewart' else 0.00
             })
@@ -139,7 +194,6 @@ if st.button("GO - Run Predictions"):
         max_points = df['Points'].max()
         df['Points Score'] = df['Points'] / max_points
 
-        odds = {'Eli Tomac': 190, 'Chase Sexton': 198, 'Hunter Lawrence': 308, 'Ken Roczen': 477, 'Cooper Webb': 750}
         def odds_to_prob(o): return 100 / (o + 100) if o > 0 else 0
         df['Odds Prob'] = df['Rider'].apply(lambda r: odds_to_prob(odds.get(r, 1000)))
 
@@ -166,34 +220,6 @@ if st.button("GO - Run Predictions"):
             w_track * (df['Track Fit Multiplier'] - 1)
         )
 
-        # Optional ML ensemble
-        if enable_ml:
-            # Dummy historical data for training (replace with real CSV later)
-            historical = pd.DataFrame({
-                'Inverted Avg Pos': np.random.uniform(0.1, 0.8, 100),
-                'Points Score': np.random.uniform(0.2, 1.0, 100),
-                'Odds Prob': np.random.uniform(0.05, 0.4, 100),
-                'Inverted Qual': np.random.uniform(0.8, 1.0, 100),
-                'Actual Position': np.random.randint(1, 11, 100)  # Lower = better
-            })
-            X = historical.drop('Actual Position', axis=1)
-            y = historical['Actual Position']
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-            rf = RandomForestRegressor(n_estimators=100, random_state=42)
-            rf.fit(X_train, y_train)
-
-            # Predict "position score" (lower = better)
-            ml_features = df[['Inverted Avg Pos', 'Points Score', 'Odds Prob', 'Inverted Qual']]
-            df['ML Position Score'] = rf.predict(ml_features)
-            # Invert to 0-1 scale (higher = better)
-            df['ML Score'] = 1 / (df['ML Position Score'] + 1)
-
-            # Weighted average with main score (60% weighted, 40% ML)
-            df['Top Score'] = 0.6 * df['Top Score'] + 0.4 * df['ML Score']
-
-            st.info("ML ensemble enabled – averaged with main weighted score.")
-        
         top_df = df.sort_values('Top Score', ascending=False).reset_index(drop=True)
 
         # Monte Carlo
@@ -229,7 +255,6 @@ if st.button("GO - Run Predictions"):
         st.subheader("Optimized Wildcard")
         st.success(f"Recommended for position {wildcard_pos}: {selected_wildcard}")
 
-        # Labeled graph
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
         ax.set_title('Top 5 Rider Scores', color=TEXT_LIGHT)
