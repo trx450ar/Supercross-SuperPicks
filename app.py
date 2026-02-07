@@ -10,13 +10,13 @@ CHARCOAL_DEEP = "#1A1A1A"
 TITANIUM_DARK = "#2E2E2E"
 BURNT_BRONZE = "#8C5523"
 BRONZE_LIGHT = "#A67C52"
-HONDA_RED_DARK = "#8B0000"  # Subtle, darker red
+HONDA_RED_DARK = "#8B0000"
 TEXT_LIGHT = "#D0D0D0"
 STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross Predictor", layout="wide")
 
-# Custom CSS - clean, bronze sliders, subtle red accents
+# Custom CSS - first version style + bronze sliders + subtle red
 st.markdown(f"""
     <style>
         .stApp {{
@@ -30,7 +30,7 @@ st.markdown(f"""
             letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red title underline */
+            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red underline */
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -52,10 +52,6 @@ st.markdown(f"""
         .stExpander {{
             background-color: {CHARCOAL_DEEP};
             border: 1px solid {TITANIUM_DARK};
-            border-radius: 4px;
-        }}
-        .stNumberInput > div > div {{
-            border: 1px solid {BRONZE_LIGHT};
             border-radius: 4px;
         }}
         .stSlider > div > div {{
@@ -84,37 +80,20 @@ st.markdown(f"""
             border: 1px solid {BRONZE_LIGHT};
             border-radius: 4px;
         }}
-        .stPlot {{
-            border: 1px solid {BRONZE_LIGHT};
-            border-radius: 4px;
-            padding: 8px;
-        }}
     </style>
 """, unsafe_allow_html=True)
 
 st.title("Supercross Predictor")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar - original layout you liked
+# Sidebar - original first version layout
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
-
-    st.subheader("Qual Lap Times")
-    st.caption("Enter 22 values (one per rider). Use current Q2 times when available.")
-    col1, col2 = st.columns(2)
-    rider_names = ['Eli Tomac', 'Hunter Lawrence', 'Ken Roczen', 'Chase Sexton', 'Cooper Webb', 'Jason Anderson', 'Justin Cooper', 'Jorge Prado', 'Malcolm Stewart', 'Joey Savatgy', 'Dylan Ferrandis', 'Aaron Plessinger', 'Christian Craig', 'Vince Friese', 'Shane McElrath', 'Justin Hill', 'RJ Hampshire', 'Freddie Noren', 'Kyle Chisholm', 'Benny Bloss', 'Justin Starling', 'Cade Clason']
-    qual_times = []
-    for i in range(22):
-        col = col1 if i < 11 else col2
-        default = 52.5 + (i * 0.2)
-        val = col.number_input(f"{rider_names[i]}", value=default, step=0.001, format="%.3f", key=f"qual_{i}")
-        qual_times.append(val)
-
     track_scale = st.slider("Track Conditions Scale", 1, 100, 80, help="1 = muddy/wet, 100 = dry/hard-pack (adjust based on preview)")
 
     with st.expander("Model Weights (Adjust if Needed)"):
-        st.markdown("Higher weight = more influence. Hover for details.")
+        st.markdown("Higher weight = more influence on final score. Hover for explanation.")
         w_pos = st.slider("Recent Position Weight", 0.0, 0.5, 0.30, step=0.05, help="Higher = favors recent momentum. Ex: 0.4 drops inconsistent riders more.")
         w_points = st.slider("Season Points Weight", 0.0, 0.5, 0.30, step=0.05, help="Higher = rewards overall standings. Ex: 0.4 boosts Tomac's lead.")
         w_odds = st.slider("Betting Odds Weight", 0.0, 0.3, 0.15, step=0.05, help="Higher = trusts market favorites more.")
@@ -127,12 +106,16 @@ with st.sidebar:
 # Main logic
 if st.button("GO - Run Predictions"):
     with st.spinner("Running model..."):
+        # Rider data (placeholder - update manually or add auto-pull later)
+        rider_names = ['Eli Tomac', 'Hunter Lawrence', 'Ken Roczen', 'Chase Sexton', 'Cooper Webb', 'Jason Anderson', 'Justin Cooper', 'Jorge Prado', 'Malcolm Stewart', 'Joey Savatgy', 'Dylan Ferrandis', 'Aaron Plessinger', 'Christian Craig', 'Vince Friese', 'Shane McElrath', 'Justin Hill', 'RJ Hampshire', 'Freddie Noren', 'Kyle Chisholm', 'Benny Bloss', 'Justin Starling', 'Cade Clason']
+        qual_times = [52.181, 52.800, 52.000, 52.500, 53.100, 53.300, 53.500, 52.417, 53.700, 53.900, 54.000, 54.200, 54.300, 54.500, 54.600, 54.800, 55.000, 55.200, 55.400, 55.600, 55.800, 56.000]  # Placeholder
+
         riders = []
         for i, name in enumerate(rider_names):
             riders.append({
                 'Rider': name,
-                'Points': 88 - i*2,  # Placeholder - update with real data later
-                'Recent Positions': [i+1, i+2, i+3, i+4],  # Placeholder
+                'Points': 88 - i*2,
+                'Recent Positions': [i+1, i+2, i+3, i+4],
                 'Qual Lap Time': qual_times[i],
                 'Behavioral Score': 0.90 - i*0.05,
                 'Injury Penalty': -0.15 if name == 'Malcolm Stewart' else 0.00
@@ -208,7 +191,7 @@ if st.button("GO - Run Predictions"):
         st.subheader("Optimized Wildcard")
         st.success(f"Recommended for position {wildcard_pos}: {selected_wildcard}")
 
-        # Graph with labels
+        # Labeled graph
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
         ax.set_title('Top 5 Rider Scores', color=TEXT_LIGHT)
