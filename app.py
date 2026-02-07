@@ -86,7 +86,7 @@ st.markdown(f"""
 st.title("Supercross SuperPicks")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar - original layout with weights expander
+# Sidebar - original layout you liked (simple + weights expander)
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
