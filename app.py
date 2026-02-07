@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
 
 # === PALETTE ===
 BLACK_BG = "#000000"
@@ -30,7 +32,7 @@ st.markdown(f"""
             letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red title underline */
+            border-bottom: 1px solid {HONDA_RED_DARK};
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -54,8 +56,15 @@ st.markdown(f"""
             border: 1px solid {TITANIUM_DARK};
             border-radius: 4px;
         }}
-        .stSlider > div > div {{
-            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});  /* Bronze sliders */
+        /* Semi-transparent bronze slider track */
+        .stSlider > div[data-testid="stSliderTrack"] {{
+            background: linear-gradient(to right, rgba(140, 85, 35, 0.4), rgba(166, 124, 82, 0.4)) !important;
+            border-radius: 4px;
+        }}
+        /* Full bronze handle for contrast */
+        .stSlider > div[data-testid="stSliderThumb"] {{
+            background-color: {BURNT_BRONZE} !important;
+            border: 2px solid {BRONZE_LIGHT} !important;
         }}
         hr {{
             border-color: {TITANIUM_DARK};
@@ -102,6 +111,8 @@ with st.sidebar:
         w_beh = st.slider("Behavioral Score Weight", 0.0, 0.3, 0.10, step=0.05, help="Higher = rewards rider traits (smooth vs aggressive).")
         w_inj = st.slider("Injury Penalty Strength", 0.0, 1.0, 1.0, step=0.1, help="Higher = harsher drop for injury risks.")
         w_track = st.slider("Track Fit Weight", 0.0, 0.2, 0.05, step=0.01, help="Higher = more boost from track conditions match.")
+
+        enable_ml = st.checkbox("Enable ML Ensemble (experimental)", value=False, help="Runs a basic random forest on features and averages with weighted score. May improve accuracy on backtests.")
 
 # Main logic
 if st.button("GO - Run Predictions"):
@@ -155,6 +166,34 @@ if st.button("GO - Run Predictions"):
             w_track * (df['Track Fit Multiplier'] - 1)
         )
 
+        # Optional ML ensemble
+        if enable_ml:
+            # Dummy historical data for training (replace with real CSV later)
+            historical = pd.DataFrame({
+                'Inverted Avg Pos': np.random.uniform(0.1, 0.8, 100),
+                'Points Score': np.random.uniform(0.2, 1.0, 100),
+                'Odds Prob': np.random.uniform(0.05, 0.4, 100),
+                'Inverted Qual': np.random.uniform(0.8, 1.0, 100),
+                'Actual Position': np.random.randint(1, 11, 100)  # Lower = better
+            })
+            X = historical.drop('Actual Position', axis=1)
+            y = historical['Actual Position']
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            rf = RandomForestRegressor(n_estimators=100, random_state=42)
+            rf.fit(X_train, y_train)
+
+            # Predict "position score" (lower = better)
+            ml_features = df[['Inverted Avg Pos', 'Points Score', 'Odds Prob', 'Inverted Qual']]
+            df['ML Position Score'] = rf.predict(ml_features)
+            # Invert to 0-1 scale (higher = better)
+            df['ML Score'] = 1 / (df['ML Position Score'] + 1)
+
+            # Weighted average with main score (60% weighted, 40% ML)
+            df['Top Score'] = 0.6 * df['Top Score'] + 0.4 * df['ML Score']
+
+            st.info("ML ensemble enabled – averaged with main weighted score.")
+        
         top_df = df.sort_values('Top Score', ascending=False).reset_index(drop=True)
 
         # Monte Carlo
