@@ -16,7 +16,7 @@ STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross Predictor", layout="wide")
 
-# Custom CSS - first version style + bronze sliders + subtle red
+# Custom CSS - original sidebar style with bronze sliders + subtle red
 st.markdown(f"""
     <style>
         .stApp {{
@@ -86,7 +86,7 @@ st.markdown(f"""
 st.title("Supercross Predictor")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar - original first version layout
+# Sidebar - first version you liked (simple + weights expander)
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
