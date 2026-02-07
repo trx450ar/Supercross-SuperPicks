@@ -8,16 +8,15 @@ from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
 BLACK_BG = "#000000"
 CHARCOAL_DEEP = "#1A1A1A"
 TITANIUM_DARK = "#2E2E2E"
-COBALT_ACCENT = "#0047AB"
 BURNT_BRONZE = "#8C5523"
 BRONZE_LIGHT = "#A67C52"
-HONDA_RED_DARK = "#8B0000"  # Darker, muted red
+HONDA_RED_DARK = "#8B0000"
 TEXT_LIGHT = "#D0D0D0"
 STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross Predictor", layout="wide")
 
-# Custom CSS - stealth / F-22 inspired
+# Custom CSS - clean, bronze sliders, labeled graph
 st.markdown(f"""
     <style>
         .stApp {{
@@ -28,10 +27,9 @@ st.markdown(f"""
         h1, h2, h3 {{
             color: {BURNT_BRONZE};
             font-weight: 600;
-            letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red underline under title */
+            border-bottom: 1px solid {HONDA_RED_DARK};
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -60,7 +58,7 @@ st.markdown(f"""
             border-radius: 4px;
         }}
         .stSlider > div > div {{
-            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});  /* Bronze slider */
+            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});  /* Bronze sliders */
         }}
         hr {{
             border-color: {TITANIUM_DARK};
@@ -81,13 +79,17 @@ st.markdown(f"""
             background: linear-gradient(to right, transparent, {TITANIUM_DARK}, transparent);
             height: 1px;
         }}
+        .stDataFrame {{
+            border: 1px solid {BRONZE_LIGHT};
+            border-radius: 4px;
+        }}
     </style>
 """, unsafe_allow_html=True)
 
 st.title("Supercross Predictor")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar
+# Sidebar - original layout you liked
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
@@ -99,7 +101,7 @@ with st.sidebar:
     qual_times = []
     for i in range(22):
         col = col1 if i < 11 else col2
-        default = 52.5 + (i * 0.2)  # Gradual fallback
+        default = 52.5 + (i * 0.2)
         val = col.number_input(f"{rider_names[i]}", value=default, step=0.001, format="%.3f", key=f"qual_{i}")
         qual_times.append(val)
 
@@ -190,7 +192,7 @@ if st.button("GO - Run Predictions"):
                 break
         selected_wildcard = df.loc[selected_index, 'Rider'] if selected_index is not None else "No valid selection"
 
-        # Display
+        # Display with improved graph labels
         st.subheader("Top 5 Predictions")
         st.dataframe(top_df.head(5)[['Rider', 'Top Score']].round(3))
 
@@ -200,11 +202,17 @@ if st.button("GO - Run Predictions"):
         st.subheader("Optimized Wildcard")
         st.success(f"Recommended for position {wildcard_pos}: {selected_wildcard}")
 
-        fig, ax = plt.subplots()
+        # Improved graph with labels
+        fig, ax = plt.subplots(figsize=(8, 5))
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
-        ax.set_title('Top 5 Rider Scores')
+        ax.set_title('Top 5 Rider Scores', color=TEXT_LIGHT)
+        ax.set_xlabel('Rider', color=TEXT_LIGHT)
+        ax.set_ylabel('Top Score', color=TEXT_LIGHT)
+        ax.tick_params(axis='x', rotation=45, colors=TEXT_LIGHT)
+        ax.tick_params(axis='y', colors=TEXT_LIGHT)
         ax.set_facecolor(CHARCOAL_DEEP)
         fig.set_facecolor(BLACK_BG)
+        fig.tight_layout()
         st.pyplot(fig)
 
 st.markdown(
