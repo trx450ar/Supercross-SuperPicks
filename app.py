@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pulp import LpMinimize, LpProblem, LpVariable, lpSum, value
 
-# === PALETTE (minimal bronze accents, no slider overrides) ===
+# === PALETTE ===
 BLACK_BG = "#000000"
 CHARCOAL_DEEP = "#1A1A1A"
 TITANIUM_DARK = "#2E2E2E"
@@ -16,7 +16,7 @@ STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross SuperPicks", layout="wide")
 
-# Custom CSS - subtle bronze + red accents, no slider color override
+# Custom CSS - original sidebar style + bronze sliders + subtle red accents
 st.markdown(f"""
     <style>
         .stApp {{
@@ -30,7 +30,7 @@ st.markdown(f"""
             letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red underline under title */
+            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red title underline */
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -53,6 +53,9 @@ st.markdown(f"""
             background-color: {CHARCOAL_DEEP};
             border: 1px solid {TITANIUM_DARK};
             border-radius: 4px;
+        }}
+        .stSlider > div > div {{
+            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});  /* Bronze sliders */
         }}
         hr {{
             border-color: {TITANIUM_DARK};
@@ -83,7 +86,7 @@ st.markdown(f"""
 st.title("Supercross SuperPicks")
 st.markdown("Grok model • Built in thread with @JumpTruck1776")
 
-# Sidebar - original first version you liked (clean, weights expander)
+# Sidebar - original layout with weights expander
 with st.sidebar:
     st.header("Live Inputs")
     wildcard_pos = st.number_input("Wildcard Position", value=14, step=1, help="Exact position wildcard is this week (from RMFantasySMX)")
@@ -187,6 +190,7 @@ if st.button("GO - Run Predictions"):
         st.subheader("Optimized Wildcard")
         st.success(f"Recommended for position {wildcard_pos}: {selected_wildcard}")
 
+        # Labeled graph
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
         ax.set_title('Top 5 Rider Scores', color=TEXT_LIGHT)
