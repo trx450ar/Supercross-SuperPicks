@@ -30,7 +30,7 @@ st.markdown(f"""
             letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};
+            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red title underline */
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -54,15 +54,8 @@ st.markdown(f"""
             border: 1px solid {TITANIUM_DARK};
             border-radius: 4px;
         }}
-        /* Bronze slider track – semi-transparent */
-        .stSlider > div[data-testid="stSliderTrack"] {{
-            background: linear-gradient(to right, rgba(140, 85, 35, 0.4), rgba(166, 124, 82, 0.4)) !important;
-            border-radius: 4px;
-        }}
-        /* Slider handle – full bronze color, high contrast */
-        .stSlider > div[data-testid="stSliderThumb"] {{
-            background-color: {BURNT_BRONZE} !important;
-            border: 2px solid {BRONZE_LIGHT} !important;
+        .stSlider > div > div {{
+            background: linear-gradient(to right, {BURNT_BRONZE}, {BRONZE_LIGHT});  /* Bronze sliders */
         }}
         hr {{
             border-color: {TITANIUM_DARK};
