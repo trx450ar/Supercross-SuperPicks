@@ -10,13 +10,13 @@ CHARCOAL_DEEP = "#1A1A1A"
 TITANIUM_DARK = "#2E2E2E"
 BURNT_BRONZE = "#8C5523"
 BRONZE_LIGHT = "#A67C52"
-HONDA_RED_DARK = "#8B0000"
+HONDA_RED_DARK = "#8B0000"  # Subtle, darker red
 TEXT_LIGHT = "#D0D0D0"
 STEALTH_GREY = "#3A3A3A"
 
 st.set_page_config(page_title="Supercross Predictor", layout="wide")
 
-# Custom CSS - clean, bronze sliders, labeled graph
+# Custom CSS - clean, bronze sliders, subtle red accents
 st.markdown(f"""
     <style>
         .stApp {{
@@ -27,9 +27,10 @@ st.markdown(f"""
         h1, h2, h3 {{
             color: {BURNT_BRONZE};
             font-weight: 600;
+            letter-spacing: 0.5px;
         }}
         h1 {{
-            border-bottom: 1px solid {HONDA_RED_DARK};
+            border-bottom: 1px solid {HONDA_RED_DARK};  /* Subtle red title underline */
             padding-bottom: 8px;
         }}
         .stButton > button {{
@@ -82,6 +83,11 @@ st.markdown(f"""
         .stDataFrame {{
             border: 1px solid {BRONZE_LIGHT};
             border-radius: 4px;
+        }}
+        .stPlot {{
+            border: 1px solid {BRONZE_LIGHT};
+            border-radius: 4px;
+            padding: 8px;
         }}
     </style>
 """, unsafe_allow_html=True)
@@ -192,7 +198,7 @@ if st.button("GO - Run Predictions"):
                 break
         selected_wildcard = df.loc[selected_index, 'Rider'] if selected_index is not None else "No valid selection"
 
-        # Display with improved graph labels
+        # Display
         st.subheader("Top 5 Predictions")
         st.dataframe(top_df.head(5)[['Rider', 'Top Score']].round(3))
 
@@ -202,7 +208,7 @@ if st.button("GO - Run Predictions"):
         st.subheader("Optimized Wildcard")
         st.success(f"Recommended for position {wildcard_pos}: {selected_wildcard}")
 
-        # Improved graph with labels
+        # Graph with labels
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.bar(top_df['Rider'].head(5), top_df['Top Score'].head(5), color=BURNT_BRONZE)
         ax.set_title('Top 5 Rider Scores', color=TEXT_LIGHT)
